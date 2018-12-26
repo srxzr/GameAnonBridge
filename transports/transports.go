@@ -32,13 +32,13 @@ package transports
 import (
 	"fmt"
 	"sync"
-
-	"git.torproject.org/pluggable-transports/obfs4.git/transports/base"
-	"git.torproject.org/pluggable-transports/obfs4.git/transports/meeklite"
-	"git.torproject.org/pluggable-transports/obfs4.git/transports/obfs2"
-	"git.torproject.org/pluggable-transports/obfs4.git/transports/obfs3"
-	"git.torproject.org/pluggable-transports/obfs4.git/transports/obfs4"
-	"git.torproject.org/pluggable-transports/obfs4.git/transports/scramblesuit"
+	"./gameAnon"
+	"./base"
+	// "git.torproject.org/pluggable-transports/obfs4.git/transports/meeklite"
+	// "git.torproject.org/pluggable-transports/obfs4.git/transports/obfs2"
+	// "git.torproject.org/pluggable-transports/obfs4.git/transports/obfs3"
+	// "git.torproject.org/pluggable-transports/obfs4.git/transports/obfs4"
+	// "git.torproject.org/pluggable-transports/obfs4.git/transports/scramblesuit"
 )
 
 var transportMapLock sync.Mutex
@@ -84,11 +84,13 @@ func Get(name string) base.Transport {
 
 // Init initializes all of the integrated transports.
 func Init() error {
-	Register(new(meeklite.Transport))
-	Register(new(obfs2.Transport))
-	Register(new(obfs3.Transport))
-	Register(new(obfs4.Transport))
-	Register(new(scramblesuit.Transport))
+	// Register(new(meeklite.Transport))
+	// Register(new(obfs2.Transport))
+	// Register(new(obfs3.Transport))
+	// Register(new(obfs4.Transport))
+	// Register(new(scramblesuit.Transport))
+	Register(new(gameAnon.Transport))
+
 
 	return nil
 }
