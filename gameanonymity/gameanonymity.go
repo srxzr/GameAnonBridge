@@ -52,7 +52,7 @@ import (
 
 const (
 	obfs4proxyVersion = "0.0.8-dev"
-	obfs4proxyLogFile = "obfs4proxy.log"
+	gameAnonLogFile = "gameanon.log"
 	socksAddr         = "127.0.0.1:0"
 )
 
@@ -319,7 +319,7 @@ func main() {
 	_, execName := path.Split(os.Args[0])
 	showVer := flag.Bool("version", false, "Print version and exit")
 	logLevelStr := flag.String("logLevel", "ERROR", "Log level (ERROR/WARN/INFO/DEBUG)")
-	enableLogging := flag.Bool("enableLogging", false, "Log to TOR_PT_STATE_LOCATION/"+obfs4proxyLogFile)
+	enableLogging := flag.Bool("enableLogging", false, "Log to TOR_PT_STATE_LOCATION/"+gameAnonLogFile)
 	unsafeLogging := flag.Bool("unsafeLogging", false, "Disable the address scrubber")
 	flag.Parse()
 
@@ -342,7 +342,7 @@ func main() {
 	if stateDir, err = pt.MakeStateDir(); err != nil {
 		golog.Fatalf("[ERROR]: %s - No state directory: %s", execName, err)
 	}
-	if err = log.Init(*enableLogging, path.Join(stateDir, obfs4proxyLogFile), *unsafeLogging); err != nil {
+	if err = log.Init(*enableLogging, path.Join(stateDir, gameAnonLogFile), *unsafeLogging); err != nil {
 		golog.Fatalf("[ERROR]: %s - failed to initialize logging", execName)
 	}
 	if err = transports.Init(); err != nil {

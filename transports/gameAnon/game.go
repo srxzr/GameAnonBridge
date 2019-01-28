@@ -61,6 +61,7 @@ const (
 	HeaderSize = 3
 
 	tickTime = 50
+	
 
 
 
@@ -166,7 +167,7 @@ func (sf *gameServerFactory) WrapConn(conn net.Conn) (net.Conn, error) {
 	// might be futile, but the timing differential isn't very large on modern
 	// hardware, and there are far easier statistical attacks that can be
 	// mounted as a distinguisher.
-
+	log.Infof("Wrap Conn")
 	c := &gameConn{conn, true,sf.K,bytes.NewBuffer(nil),make(chan bool),time.NewTicker(time.Millisecond * tickTime),make([]byte, MaximumFramePayloadLength),make([]byte, 1600*6),bytes.NewBuffer(nil),bytes.NewBuffer(nil),bytes.NewBuffer(nil),8000}
 
 	go c.PeriodicWrite()
@@ -197,6 +198,7 @@ func newGameClientConn(conn net.Conn, args *gameClientArgs) (c *gameConn, err er
 	// Generate the initial protocol polymorphism distribution(s).
 
 
+	log.Infof("CLient Conn")
 	// Allocate the client structure.
 	c = &gameConn{conn, false, args.K,bytes.NewBuffer(nil),make(chan bool),time.NewTicker(time.Millisecond * tickTime),make([]byte, MaximumFramePayloadLength),make([]byte, 1600*6),bytes.NewBuffer(nil),bytes.NewBuffer(nil),bytes.NewBuffer(nil),8000}
 
@@ -373,6 +375,14 @@ func (conn *gameConn) PeriodicWrite() (err error) {
 	}
 	return 
 }
+
+
+
+func (conn *gameConn) Close() ( err error) {
+	log.Infof("Closing MY Connection ")
+	return conn.Conn.Close()
+}
+
 
 func min(a, b int) int {
     if a < b {
