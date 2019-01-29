@@ -60,7 +60,12 @@ const (
 
 	HeaderSize = 3
 
-	tickTime = 50
+	tickTimeDefault = 50 //ms
+
+	epochTickTimeDefault =  60 * 1000 // ms
+	measuringTickTimeDefault = 1 * 1000 // ms
+
+	bandwidthDefault = 80000
 	
 
 
@@ -104,7 +109,9 @@ func (t *Transport) ServerFactory(stateDir string, args *pt.Args) (base.ServerFa
 
 
 
-	sf := &GameServerFactory{t, &ptArgs,4,make(map[*gameConn]bool)}	
+	sf := &GameServerFactory{t, &ptArgs,4,make(map[*gameConn]bool),time.NewTicker(time.Millisecond * measuringTickTimeDefault),time.NewTicker(time.Millisecond * epochTickTimeDefault)}	
+
+	go sf.Measure()
 	
 	return sf, nil
 }
@@ -157,6 +164,10 @@ type gameConn struct {
 	receiveDecodedBuffer        *bytes.Buffer
 	transmitBuffer *bytes.Buffer
 	writeRateByte    int
+	bytesSent int
+	bytesReceived int
+	transmittedMeasures chan int 
+	receivedMeasures chan int
 }
 
 
@@ -165,6 +176,8 @@ type GameServerFactory struct {
 	args      *pt.Args
 	K			int
 	clients		map[*gameConn]bool
+	measureTicker *time.Ticker
+	epochTicker *time.Ticker
 }
 
 func (sf *GameServerFactory) Transport() base.Transport {
@@ -206,7 +219,7 @@ func (sf *GameServerFactory) WrapConn(conn net.Conn) (net.Conn, error) {
 	// hardware, and there are far easier statistical attacks that can be
 	// mounted as a distinguisher.
 	log.Infof("Wrap Conn")
-	c := &gameConn{conn, true,sf.K,bytes.NewBuffer(nil),make(chan bool),time.NewTicker(time.Millisecond * tickTime),make([]byte, MaximumFramePayloadLength),make([]byte, 1600*6),bytes.NewBuffer(nil),bytes.NewBuffer(nil),bytes.NewBuffer(nil),8000}
+	c := &gameConn{conn, true,sf.K,bytes.NewBuffer(nil),make(chan bool),time.NewTicker(time.Millisecond * tickTimeDefault),make([]byte, MaximumFramePayloadLength),make([]byte, 1600*6),bytes.NewBuffer(nil),bytes.NewBuffer(nil),bytes.NewBuffer(nil),bandwidthDefault,0,0,make(chan int),make(chan int)}
 	sf.clients[c]=true
 	go c.PeriodicWrite()
 	
@@ -223,7 +236,7 @@ func newGameClientConn(conn net.Conn, args *gameClientArgs) (c *gameConn, err er
 
 	log.Infof("CLient Conn")
 	// Allocate the client structure.
-	c = &gameConn{conn, false, args.K,bytes.NewBuffer(nil),make(chan bool),time.NewTicker(time.Millisecond * tickTime),make([]byte, MaximumFramePayloadLength),make([]byte, 1600*6),bytes.NewBuffer(nil),bytes.NewBuffer(nil),bytes.NewBuffer(nil),8000}
+	c = &gameConn{conn, false, args.K,bytes.NewBuffer(nil),make(chan bool),time.NewTicker(time.Millisecond * tickTimeDefault),make([]byte, MaximumFramePayloadLength),make([]byte, 1600*6),bytes.NewBuffer(nil),bytes.NewBuffer(nil),bytes.NewBuffer(nil),bandwidthDefault,0,0,make(chan int),make(chan int)}
 
 	// Start the handshake timeout.
 	// deadline := time.Now().Add(clientHandshakeTimeout)
@@ -314,6 +327,40 @@ func (conn *gameConn) Write(b []byte) (n int, err error) {
 	
 	return conn.writeBuffer.Write(b)
 }
+
+
+func (sf *GameServerFactory) Measure()  {
+	log.Infof("measure tick")
+
+	ticker := sf.measureTicker.C
+	for {
+		select {
+
+		case <- ticker:
+			for client := range sf.clients {
+				client.transmittedMeasures <- client.bytesSent
+				client.bytesSent = 0 
+				client.receivedMeasures <- client.bytesReceived
+				client.bytesReceived = 0
+				log.Infof("received measures %s",client.receivedMeasures)
+			}
+			
+			
+			
+
+			
+		}
+	}
+	return 
+}
+
+
+
+
+
+
+
+
 
 func (conn *gameConn) PeriodicWrite() (err error) {
 	log.Infof("Periodic writer")
