@@ -342,9 +342,9 @@ func (sf *GameServerFactory) Measure()  {
 			log.Infof("measure tick")
 			for client := range sf.clients {
 				log.Infof("measure client tick %s ",client.bytesSent,client.bytesReceived)
-				client.transmittedMeasures <- client.bytesSent
+				//client.transmittedMeasures <- client.bytesSent
 				//client.bytesSent = 0 
-				client.receivedMeasures <- client.bytesReceived
+				//client.receivedMeasures <- client.bytesReceived
 				//client.bytesReceived = 0
 				//log.Infof("received measures %s",client.receivedMeasures)
 			}
