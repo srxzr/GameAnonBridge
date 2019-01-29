@@ -330,19 +330,21 @@ func (conn *gameConn) Write(b []byte) (n int, err error) {
 
 
 func (sf *GameServerFactory) Measure()  {
-	log.Infof("measure tick")
+	log.Infof("measure ticker")
 
 	ticker := sf.measureTicker.C
 	for {
 		select {
 
 		case <- ticker:
+			log.Infof("measure tick")
 			for client := range sf.clients {
+				log.Infof("measure client tick %s",client)
 				client.transmittedMeasures <- client.bytesSent
 				client.bytesSent = 0 
 				client.receivedMeasures <- client.bytesReceived
 				client.bytesReceived = 0
-				log.Infof("received measures %s",client.receivedMeasures)
+				//log.Infof("received measures %s",client.receivedMeasures)
 			}
 			
 			
