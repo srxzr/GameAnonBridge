@@ -339,7 +339,7 @@ func (sf *GameServerFactory) Measure()  {
 		case <- ticker:
 			log.Infof("measure tick")
 			for client := range sf.clients {
-				log.Infof("measure client tick %s",client)
+				log.Infof("measure client tick %s ",client.bytesSent)
 				client.transmittedMeasures <- client.bytesSent
 				client.bytesSent = 0 
 				client.receivedMeasures <- client.bytesReceived
