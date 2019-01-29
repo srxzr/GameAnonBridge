@@ -94,7 +94,7 @@ func (t *Transport) ClientFactory(stateDir string) (base.ClientFactory, error) {
 	return cf, nil
 }
 
-// ServerFactory returns a new gameServerFactory instance.
+// ServerFactory returns a new GameServerFactory instance.
 func (t *Transport) ServerFactory(stateDir string, args *pt.Args) (base.ServerFactory, error) {
 
 	// Store the arguments that should appear in our descriptor for the clients.
@@ -104,7 +104,8 @@ func (t *Transport) ServerFactory(stateDir string, args *pt.Args) (base.ServerFa
 
 
 
-	sf := &gameServerFactory{t, &ptArgs,4}	
+	sf := &GameServerFactory{t, &ptArgs,4,make(map[*gameConn]bool)}	
+	
 	return sf, nil
 }
 
@@ -143,42 +144,6 @@ func (cf *gameClientFactory) Dial(network, addr string, dialFn base.DialFunc, ar
 	}
 	return conn, nil
 }
-
-type gameServerFactory struct {
-	transport base.Transport
-	args      *pt.Args
-	K			int
-}
-
-func (sf *gameServerFactory) Transport() base.Transport {
-	return sf.transport
-}
-
-func (sf *gameServerFactory) Args() *pt.Args {
-	return sf.args
-}
-
-func (sf *gameServerFactory) WrapConn(conn net.Conn) (net.Conn, error) {
-	// Not much point in having a separate newObfs4ServerConn routine when
-	// wrapping requires using values from the factory instance.
-
-	// Generate the session keypair *before* consuming data from the peer, to
-	// attempt to mask the rejection sampling due to use of Elligator2.  This
-	// might be futile, but the timing differential isn't very large on modern
-	// hardware, and there are far easier statistical attacks that can be
-	// mounted as a distinguisher.
-	log.Infof("Wrap Conn")
-	c := &gameConn{conn, true,sf.K,bytes.NewBuffer(nil),make(chan bool),time.NewTicker(time.Millisecond * tickTime),make([]byte, MaximumFramePayloadLength),make([]byte, 1600*6),bytes.NewBuffer(nil),bytes.NewBuffer(nil),bytes.NewBuffer(nil),8000}
-
-	go c.PeriodicWrite()
-	
-
-	return c, nil
-}
-
-
-
-
 type gameConn struct {
 	net.Conn
 	isServer bool
@@ -193,6 +158,64 @@ type gameConn struct {
 	transmitBuffer *bytes.Buffer
 	writeRateByte    int
 }
+
+
+type GameServerFactory struct {
+	transport base.Transport
+	args      *pt.Args
+	K			int
+	clients		map[*gameConn]bool
+}
+
+func (sf *GameServerFactory) Transport() base.Transport {
+	return sf.transport
+}
+
+func (sf *GameServerFactory) Args() *pt.Args {
+	return sf.args
+}
+
+
+
+
+func (sf *GameServerFactory) CloseConnection(conn net.Conn)  {
+	gc,ok :=conn.(*gameConn)
+	
+	if ok {
+		log.Infof("removing connection from the list (%s)",sf.clients)
+		delete(sf.clients,gc)
+		log.Infof("removed connection from the list (%s)",sf.clients)
+
+	}
+	
+	
+	conn.Close()
+	
+}
+
+
+
+
+func (sf *GameServerFactory) WrapConn(conn net.Conn) (net.Conn, error) {
+	// Not much point in having a separate newObfs4ServerConn routine when
+	// wrapping requires using values from the factory instance.
+
+	// Generate the session keypair *before* consuming data from the peer, to
+	// attempt to mask the rejection sampling due to use of Elligator2.  This
+	// might be futile, but the timing differential isn't very large on modern
+	// hardware, and there are far easier statistical attacks that can be
+	// mounted as a distinguisher.
+	log.Infof("Wrap Conn")
+	c := &gameConn{conn, true,sf.K,bytes.NewBuffer(nil),make(chan bool),time.NewTicker(time.Millisecond * tickTime),make([]byte, MaximumFramePayloadLength),make([]byte, 1600*6),bytes.NewBuffer(nil),bytes.NewBuffer(nil),bytes.NewBuffer(nil),8000}
+	sf.clients[c]=true
+	go c.PeriodicWrite()
+	
+
+	return c, nil
+}
+
+
+
 
 func newGameClientConn(conn net.Conn, args *gameClientArgs) (c *gameConn, err error) {
 	// Generate the initial protocol polymorphism distribution(s).
@@ -378,12 +401,6 @@ func (conn *gameConn) PeriodicWrite() (err error) {
 
 
 
-func (conn *gameConn) Close() ( err error) {
-	log.Infof("Closing MY Connection ")
-	return conn.Conn.Close()
-}
-
-
 func min(a, b int) int {
     if a < b {
         return a
@@ -405,6 +422,6 @@ func init() {
 }
 
 var _ base.ClientFactory = (*gameClientFactory)(nil)
-var _ base.ServerFactory = (*gameServerFactory)(nil)
+var _ base.ServerFactory = (*GameServerFactory)(nil)
 var _ base.Transport = (*Transport)(nil)
 var _ net.Conn = (*gameConn)(nil)

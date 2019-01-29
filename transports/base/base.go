@@ -72,6 +72,7 @@ type ServerFactory interface {
 	// implementation, and does whatever is required (eg: handshaking) to get
 	// the connection to a point where it is ready to relay data.
 	WrapConn(conn net.Conn) (net.Conn, error)
+	
 }
 
 // Transport is an interface that defines a pluggable transport protocol.

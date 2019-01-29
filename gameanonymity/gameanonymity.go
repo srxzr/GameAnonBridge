@@ -48,6 +48,7 @@ import (
 	"git.torproject.org/pluggable-transports/obfs4.git/common/socks5"
 	"../transports"
 	"../transports/base"
+	"../transports/gameAnon"
 )
 
 const (
@@ -199,7 +200,7 @@ func serverSetup() (launched bool, listeners []net.Listener) {
 			pt.SmethodError(name, err.Error())
 			continue
 		}
-
+		
 		ln, err := net.ListenTCP("tcp", bindaddr.Addr)
 		if err != nil {
 			pt.SmethodError(name, err.Error())
@@ -262,7 +263,7 @@ func serverHandler(f base.ServerFactory, conn net.Conn, info *pt.ServerInfo) {
 	}
 	defer orConn.Close()
 
-	if err = copyLoop(orConn, remote); err != nil {
+	if err = serverCopyLoop(f,orConn, remote); err != nil {
 		log.Warnf("%s(%s) - closed connection: %s", name, addrStr, log.ElideError(err))
 	} else {
 		log.Infof("%s(%s) - closed connection", name, addrStr)
@@ -271,7 +272,56 @@ func serverHandler(f base.ServerFactory, conn net.Conn, info *pt.ServerInfo) {
 	return
 }
 
-func copyLoop(a net.Conn, b net.Conn) error {
+
+
+func serverCopyLoop(f base.ServerFactory, a net.Conn, b net.Conn) error {
+	// Note: b is always the pt connection.  a is the SOCKS/ORPort connection.
+	errChan := make(chan error, 2)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	
+	fgame,ok := f.(*gameAnon.GameServerFactory)
+	
+	go func() {
+		defer wg.Done()
+		if ok {
+			defer fgame.CloseConnection(b)
+		} else{
+			defer b.Close()
+		}
+		
+		defer a.Close()
+		_, err := io.Copy(b, a)
+		errChan <- err
+	}()
+	go func() {
+		defer wg.Done()
+		defer a.Close()
+		if ok {
+			defer fgame.CloseConnection(b)
+		} else{
+			defer b.Close()
+		}
+		_, err := io.Copy(a, b)
+		errChan <- err
+	}()
+
+	// Wait for both upstream and downstream to close.  Since one side
+	// terminating closes the other, the second error in the channel will be
+	// something like EINVAL (though io.Copy() will swallow EOF), so only the
+	// first error is returned.
+	wg.Wait()
+	if len(errChan) > 0 {
+		return <-errChan
+	}
+
+	return nil
+}
+
+
+
+func copyLoop( a net.Conn, b net.Conn) error {
 	// Note: b is always the pt connection.  a is the SOCKS/ORPort connection.
 	errChan := make(chan error, 2)
 
