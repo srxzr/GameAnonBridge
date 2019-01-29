@@ -67,6 +67,7 @@ const (
 
 	bandwidthDefault = 80000
 	
+	measureChannelBuffersize= 1000
 
 
 
@@ -219,7 +220,7 @@ func (sf *GameServerFactory) WrapConn(conn net.Conn) (net.Conn, error) {
 	// hardware, and there are far easier statistical attacks that can be
 	// mounted as a distinguisher.
 	log.Infof("Wrap Conn")
-	c := &gameConn{conn, true,sf.K,bytes.NewBuffer(nil),make(chan bool),time.NewTicker(time.Millisecond * tickTimeDefault),make([]byte, MaximumFramePayloadLength),make([]byte, 1600*6),bytes.NewBuffer(nil),bytes.NewBuffer(nil),bytes.NewBuffer(nil),bandwidthDefault,0,0,make(chan int),make(chan int)}
+	c := &gameConn{conn, true,sf.K,bytes.NewBuffer(nil),make(chan bool),time.NewTicker(time.Millisecond * tickTimeDefault),make([]byte, MaximumFramePayloadLength),make([]byte, 1600*6),bytes.NewBuffer(nil),bytes.NewBuffer(nil),bytes.NewBuffer(nil),bandwidthDefault,0,0,make(chan int,measureChannelBuffersize),make(chan int,measureChannelBuffersize)}
 	sf.clients[c]=true
 	go c.PeriodicWrite()
 	
@@ -236,7 +237,7 @@ func newGameClientConn(conn net.Conn, args *gameClientArgs) (c *gameConn, err er
 
 	log.Infof("CLient Conn")
 	// Allocate the client structure.
-	c = &gameConn{conn, false, args.K,bytes.NewBuffer(nil),make(chan bool),time.NewTicker(time.Millisecond * tickTimeDefault),make([]byte, MaximumFramePayloadLength),make([]byte, 1600*6),bytes.NewBuffer(nil),bytes.NewBuffer(nil),bytes.NewBuffer(nil),bandwidthDefault,0,0,make(chan int),make(chan int)}
+	c = &gameConn{conn, false, args.K,bytes.NewBuffer(nil),make(chan bool),time.NewTicker(time.Millisecond * tickTimeDefault),make([]byte, MaximumFramePayloadLength),make([]byte, 1600*6),bytes.NewBuffer(nil),bytes.NewBuffer(nil),bytes.NewBuffer(nil),bandwidthDefault,0,0,make(chan int,measureChannelBuffersize),make(chan int,measureChannelBuffersize)}
 
 	// Start the handshake timeout.
 	// deadline := time.Now().Add(clientHandshakeTimeout)
@@ -342,11 +343,11 @@ func (sf *GameServerFactory) Measure()  {
 			log.Infof("measure tick")
 			for client := range sf.clients {
 				log.Infof("measure client tick %s ",client.bytesSent,client.bytesReceived)
-				client.transmittedMeasures <- 1
-				//client.bytesSent = 0 
-				//client.receivedMeasures <- client.bytesReceived
-				//client.bytesReceived = 0
-				//log.Infof("received measures %s",client.receivedMeasures)
+				client.transmittedMeasures <- client.bytesSent
+				client.bytesSent = 0 
+				client.receivedMeasures <- client.bytesReceived
+				client.bytesReceived = 0
+				
 			}
 			
 			
