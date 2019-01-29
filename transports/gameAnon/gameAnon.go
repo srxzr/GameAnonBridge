@@ -336,13 +336,30 @@ func (sf *GameServerFactory) Measure()  {
 	log.Infof("measure ticker")
 
 	ticker := sf.measureTicker.C
+	epochticker := sf.epochTicker.C
 	for {
 		select {
+		case <- epochticker:
+			for client := range sf.clients {
+				trchannelLen := len(client.transmittedMeasures)
+				rvchannelLen := len(client.receivedMeasures)
+				sendArray := make([] int ,trchannelLen)
+				receiveArray := make([] int,rvchannelLen )
+				for i :=0 ; i< trchannelLen ; i++{
+					sendArray[i] = <-client.transmittedMeasures
+				}
+				for i :=0 ; i< rvchannelLen ; i++{
+					receiveArray[i] = <-client.receivedMeasures
+				}
+
+				log.Infof("%s",receiveArray)
+				
+			}
+
 
 		case <- ticker:
-			log.Infof("measure tick")
+			
 			for client := range sf.clients {
-				log.Infof("measure client tick %s ",client.bytesSent,client.bytesReceived)
 				client.transmittedMeasures <- client.bytesSent
 				client.bytesSent = 0 
 				client.receivedMeasures <- client.bytesReceived
