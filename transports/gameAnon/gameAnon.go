@@ -319,11 +319,13 @@ func (conn *gameConn) Read(b []byte) (n int, err error) {
 
 
 
-	return conn.receiveDecodedBuffer.Read(b)
+	n,err = conn.receiveDecodedBuffer.Read(b)
+	conn.bytesReceived+=n
+	return n,err
 }
 
 func (conn *gameConn) Write(b []byte) (n int, err error) {
-	
+	conn.bytesSent+= len(b)
 	
 	return conn.writeBuffer.Write(b)
 }
@@ -339,11 +341,11 @@ func (sf *GameServerFactory) Measure()  {
 		case <- ticker:
 			log.Infof("measure tick")
 			for client := range sf.clients {
-				log.Infof("measure client tick %s ",client.bytesSent)
+				log.Infof("measure client tick %s ",client.bytesSent,client.bytesReceived)
 				client.transmittedMeasures <- client.bytesSent
-				client.bytesSent = 0 
+				//client.bytesSent = 0 
 				client.receivedMeasures <- client.bytesReceived
-				client.bytesReceived = 0
+				//client.bytesReceived = 0
 				//log.Infof("received measures %s",client.receivedMeasures)
 			}
 			
